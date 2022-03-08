@@ -64,7 +64,7 @@ for i in files:
     # x_train_all.append(img)
     cv2.imwrite(directory+'\\train_encoded\\'+i,img)
     progress += 1
-<<<<<<< HEAD
+
     print('진행도: '+str(progress)+' 전체갯수: '+str(len(files)))
 =======
     print('진행도: '+str(progress)+' 전체갯수: '+str(files))
@@ -80,7 +80,7 @@ for j in files2:
 
 
 # print(x_train_all[0])
->>>>>>> 5a42b343dbb0403e98e76ac621088fc95c383e36
+
 
 #In[4]
 import pandas as pd
@@ -93,7 +93,6 @@ y_train_all = target.iloc[1:100]
 # print(y_train_all)
 print('done')
 
-<<<<<<< HEAD
 
 #In[5]
 encode_progress = 0
@@ -133,7 +132,7 @@ print(y_train_all.shape)
 print(x_train_all.shape())
 print(y_train_all.shape())
 
->>>>>>> 5a42b343dbb0403e98e76ac621088fc95c383e36
+
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
