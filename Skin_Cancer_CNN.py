@@ -64,23 +64,7 @@ for i in files:
     # x_train_all.append(img)
     cv2.imwrite(directory+'\\train_encoded\\'+i,img)
     progress += 1
-
     print('진행도: '+str(progress)+' 전체갯수: '+str(len(files)))
-=======
-    print('진행도: '+str(progress)+' 전체갯수: '+str(files))
-    if(progress == 100):
-        break
-
-
-files2 = []
-files2 = os.listdir(directory+'\\train_encoded')
-for j in files2:
-    img2 = cv2.imread(directory+'train_encoded'+j)
-    x_train_all.append(img2)
-
-
-# print(x_train_all[0])
-
 
 #In[4]
 import pandas as pd
@@ -89,7 +73,6 @@ import numpy as np
 df = pd.read_csv(directory+'\\ISIC_2020_Training_GroundTruth.csv')
 target = df['target']
 y_train_all = target.drop(0, axis=0) #행은 axis 0 열은 axis 1이다 첫번째 행 제거(얘 혼자 다른 사진임)
-y_train_all = target.iloc[1:100]
 # print(y_train_all)
 print('done')
 
@@ -127,12 +110,6 @@ print(x_train_all.shape)
 print(y_train_all.shape)
 
 #In[9]
-=======
-#검사용
-print(x_train_all.shape())
-print(y_train_all.shape())
-
-
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
@@ -151,14 +128,6 @@ x_val = x_val//255
 
 
 
-
-x_train = np.array(x_train)
-x_train = x_train.reshape(-1,28,28,1)
-x_train = x_train/255
-
-x_val = np.array(x_val)
-x_val = x_val.reshape(-1,28,28,1)
-x_val = x_val/255
 
 conv1 = tf.keras.Sequential()
 conv1.add(Conv2D(10,(3,3),activation='relu', padding='same',input_shape=(28,28,1)))
