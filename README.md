@@ -37,8 +37,8 @@ Non-trainable params: 0
 
 
 * 정확도 그래프  
- ![accuracy](https://github.com/Oldentomato/Skin_Cancer_AI/blob/main/accuracy.png?raw=true)
+ ![accuracy](https://github.com/Oldentomato/Skin_Cancer_AI/blob/main/Images/accuracy.png?raw=true)
 * 손실 그래프  
- ![loss](https://github.com/Oldentomato/Skin_Cancer_AI/blob/main/loss.png?raw=true)
+ ![loss](https://github.com/Oldentomato/Skin_Cancer_AI/blob/main/Images/loss.png?raw=true)
 
 
