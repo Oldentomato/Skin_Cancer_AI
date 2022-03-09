@@ -1,7 +1,7 @@
 # Skin Cancer AI with CNN
 * 영상처리: 이미지 데이터 정제는 contour,bilateralFilter를 이용  
 * 라이브러리: tensorflow, matplotlib, pandas, opencv 등 사용  
-* 활성함수: relu(은닉층)100개, sigmoid(출력층)2개  
+* 활성함수: relu(은닉층)128개, 32개 sigmoid(출력층)1개  
 * 손실함수: binary_crossentropy
   
 * * *
