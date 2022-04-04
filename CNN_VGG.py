@@ -12,39 +12,13 @@ if gpus:
         # Memory growth must be set before GPUs have been initialized
         print(e)
 
-#In [2]
-
-import pandas as pd
-import os
-import cv2
-import shutil
-
-directory = 'C:/Users/COMPUTER/Desktop/skin_cancer'
-directory_2 = 'C:/Users/COMPUTER/Desktop/skin_cancer_images/images'
-files = os.listdir(directory+'/train_encoded')
-df = pd.read_csv('C:/Users/COMPUTER/Desktop/skin_cancer/ISIC_2020_Training_GroundTruth.csv')
-df = df.drop(0, axis=0)
-condition_be = (df.target == 0)
-condition_mal = (df.target == 1)
-benign = df.loc[:][condition_be]
-malignant = df.loc[:][condition_mal]
-benign.reset_index(inplace=True)
-malignant.reset_index(inplace=True)
-
-
-
-for i in range(0,len(benign)):
-    shutil.move(directory + '/train_encoded/'+benign['image_name'][i]+'.jpg', directory_2 + '/benign/'+benign['image_name'][i]+'.jpg')
-    
-for i in range(0,len(malignant)):
-    shutil.move(directory + '/train_encoded/'+malignant['image_name'][i]+'.jpg', directory_2 + '/malignant/'+malignant['image_name'][i]+'.jpg')
 
 
 #In [3]
 
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-image_directory = 'C:/Users/COMPUTER/Desktop/skin_cancer_images/color'
+image_directory = 'C:/Users/COMPUTER/Desktop/skin_cancer_images/melanoma'
 
 train_datagen= ImageDataGenerator( #여기다가 여러 파라미터를 넣어서 새로운 이미지들을 만들어야한다
     rescale = 1. /255,
@@ -57,9 +31,11 @@ train_datagen= ImageDataGenerator( #여기다가 여러 파라미터를 넣어�
     fill_mode = 'nearest'
 )
 
+test_datagen = ImageDataGenerator(
+    rescale = 1. /255,
+)
 
-
-valid_test_datagen = ImageDataGenerator(
+valid_datagen = ImageDataGenerator(
     rescale = 1. /255,
 )
 
@@ -67,85 +43,92 @@ train_generator = train_datagen.flow_from_directory(
     image_directory+'/train',
     target_size = (512,512),
     color_mode = 'rgb',
-    class_mode = 'categorical',
+    class_mode = 'binary',
     shuffle = True,
-    batch_size = 32,
+    batch_size = 8,
 )
 
-
-
-valid_generator = valid_test_datagen.flow_from_directory(
+test_generator = test_datagen.flow_from_directory(
     image_directory+'/test',
     target_size = (512,512),
     color_mode = 'rgb',
-    class_mode = 'categorical',
-    shuffle = True,
-    batch_size = 32,
+    class_mode = 'binary',
+    shuffle = False,
+    batch_size = 8,
 )
 
+valid_generator = valid_datagen.flow_from_directory(
+    image_directory+'/valid',
+    target_size = (512,512),
+    color_mode = 'rgb',
+    class_mode = 'binary',
+    shuffle = False,
+    batch_size = 8,
+)
+
+
+
+
 #In [4]
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
-import tensorflow as tf
-from tensorflow.keras.layers import Dropout
-
-conv1 = tf.keras.Sequential()
-conv1.add(Conv2D(16,(3,3),activation='relu', padding='same',input_shape=(28,28,1)))
-conv1.add(MaxPooling2D(2,2))
-conv1.add(Conv2D(16,(3,3),activation='relu', padding='same'))
-conv1.add(MaxPooling2D(2,2))
-conv1.add(Conv2D(16,(3,3),activation='relu', padding='same'))
-conv1.add(MaxPooling2D(2,2))
-
-conv1.add(Flatten())
-
-
-conv1.add(Dense(128,activation='relu'))
-conv1.add(Dropout(0.5))
-conv1.add(Dense(32,activation='relu'))
-conv1.add(Dropout(0.5))
-conv1.add(Dense(1,activation='sigmoid'))
-
-conv1.summary()
-
-#In [5] In [6]과 같이 모델구성 부분 둘중 하나만 쓸것
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
 from tensorflow.keras.applications.vgg16 import VGG16
 from tensorflow.keras.models import Model
 
-vgg16 = VGG16(weights='imagenet', include_top=False, input_shape=(32,32,3)) #3채널만 됨
+vgg16 = VGG16(weights='imagenet', include_top=False, input_shape=(512,512,3)) #3채널만 됨
+
+vgg16.trainable = False
 
 flat = GlobalAveragePooling2D()(vgg16.output)
 
-#Add_layer = Dense(256, activation= 'relu')(flat)
 Add_layer = Dense(64, activation = 'relu')(flat)
-# Add_layer = Dense(32, activation = 'relu')(Add_layer)
 Add_layer = Dense(1, activation = 'sigmoid')(Add_layer)
 model = Model(inputs=vgg16.input, outputs=Add_layer)
 
 model.summary()
 
-#In [6]
-from keras import models
-from keras import layers
-model = models.Sequential()
-model.add(conv_base)
-model.add(layers.Flatten())
-model.add(layers.Dense(256, activation='relu'))
-model.add(layers.Dense(1, activation='sigmoid'))
+#In [5]
+vgg16.trainable = True
 
-model.summary()
+#In [6]
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
+save_dir = 'C:/Users/COMPUTER/Desktop/skin_cancer/model(vgg)/checkpoint/'
+checkpoint = ModelCheckpoint(
+    save_dir+'{epoch:02d}-{val_loss:.5f}.h5', #모델 저장 경로
+    monitor='val_loss', #모델을 저장할 때 기준이 되는 값
+    verbose = 1, # 1이면 저장되었다고 화면에 뜨고 0이면 안뜸
+    save_best_only=True,
+    mode = 'auto',
+    #val_acc인 경우, 정확도이기 때문에 클수록 좋으므로 max를 쓰고, val_loss일 경우, loss값이기 떄문에 작을수록 좋으므로 min을써야한다
+    #auto일 경우 모델이 알아서 min,max를 판단하여 모델을 저장한다
+    save_weights_only=False, #가중치만 저장할것인가 아닌가
+    save_freq = 1 #1번째 에포크마다 가중치를 저장 period를 안쓰고 save_freq룰 씀
+)
+
+earlystop = EarlyStopping(
+    monitor='val_loss',
+    min_delta = 0.001,
+    patience = 3,
+    verbose=1,
+    mode='auto'
+)
+
+callbacks = [checkpoint]
+
 
 #In [7]
 
-model.compile(optimizer='adam',loss='binary_crossentropy',metrics=['accuracy'])
+from tensorflow import keras
+model.compile(optimizer=keras.optimizers.Adam(lr=0.0001) ,loss='binary_crossentropy',metrics=['accuracy'])
+#러닝레이트를 설정안해주면 트레이닝은 잘되지만 valid는 이상하게 된다
 tf.debugging.set_log_device_placement(True)
 
 with tf.device("/gpu:0"):
     history = model.fit_generator(train_generator,
-#                                  steps_per_epoch=len(train_generator),
-                                 epochs=200,
+                                 steps_per_epoch=len(train_generator),
+                                 epochs=100,
                                  validation_data=valid_generator,
-#                                  validation_steps=len(valid_generator),
+                                 validation_steps=len(valid_generator),
+                                 callbacks = callbacks,
                                  shuffle=True)
 
 #In [7]
@@ -164,3 +147,7 @@ plt.ylabel('accuracy')
 plt.xlabel('epoch')
 plt.legend(['train_accuracy','val_accuracy'])
 plt.show()
+
+#In [8]
+directory = 'C:/Users/COMPUTER/Desktop/skin_cancer'
+model.save(directory+'/model(vgg)/skincancer_model(93).h5')
