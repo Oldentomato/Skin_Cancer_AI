@@ -105,3 +105,30 @@ Classification Report
     accuracy                           0.94      3560  
    macro avg       0.94      0.94      0.94      3560  
 weighted avg       0.94      0.94      0.94      3560  
+
+> 일곱번째 학습 결과   
+      
+**트레이닝이미지: 10,682장 검증이미지: 3560장 테스트이미지: 3562장 100epoch**  
+* 모델 구성  
+ImageDataGenerator 사용  
+DenseNet121 사용  
+learning_rate = 0.0001  
+모든 Conv_Base Freezing 후 재학습 (fine_tunning)  
+이미지 크기: 512,512,3  
+
+* 정확도 그래프  
+ ![accuracy](https://github.com/Oldentomato/Skin_Cancer_AI/blob/main/Images/denseacc.png?raw=true)
+* 손실 그래프  
+ ![loss](https://github.com/Oldentomato/Skin_Cancer_AI/blob/main/Images/denseloss.png?raw=true)
+
+
+Classification Report
+
+              precision    recall  f1-score   support
+
+    Melanoma       0.96      0.92      0.94      1780
+ NotMelanoma       0.92      0.96      0.94      1780
+
+    accuracy                           0.94      3560
+   macro avg       0.94      0.94      0.94      3560
+weighted avg       0.94      0.94      0.94      3560
