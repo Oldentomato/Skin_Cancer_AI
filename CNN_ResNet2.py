@@ -11,6 +11,7 @@ from keras import models
 from keras import layers
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
 import matplotlib.pyplot as plt
+from functools import partial
 # from sklearn.model_selection import train_test_split
 
 
@@ -83,7 +84,7 @@ valid_datagen = ImageDataGenerator(
     rescale = 1. /255
 )
 
-skf = StratifiedKFold(n_splits=5,random_state=42,shuffle=True)
+skf = StratifiedKFold(n_splits=3,random_state=42,shuffle=True)
 for train_index, valid_index in skf.split(data_df,data_df['label']):
     training_data = data_df.iloc[train_index]
     validation_data = data_df.iloc[valid_index]
@@ -125,13 +126,18 @@ resnet = ResNet50(weights="imagenet", include_top=False, input_shape=(512, 512, 
 
 resnet.trainable = False
 
+RegularizedDense = partial(Dense,
+                    activation='relu',
+                    kernel_initializer="he_normal",
+                    kernel_regularizer=keras.regularizers.l2(0.01))
+#partial을 쓰지 않으면 밑에서 Dense를 호출할때마다 위의 3가지 인자를 각각 써줘야한다.
+#하지만 partial을 쓰면 미리 정의를 해주고 사용할 때 필요한 인자만 바꿔주면 된다.
+#partial(사용할 함수, 함수의 인자값,...)
 
 flat = GlobalAveragePooling2D()(resnet.output)
-# Add_layer = Dense(5, activation='relu')(flat)
-# Add_layer = Dense(51, activation='relu')(Add_layer)
-# Add_layer = Dense(256, activation='relu')(Add_layer)
-# Add_layer = Dense(512, activation='relu')(Add_layer)
-Add_layer = Dense(1, activation='sigmoid')(flat)
+Add_layer = RegularizedDense(256)(flat)
+Add_layer = RegularizedDense(512)(Add_layer)
+Add_layer = RegularizedDense(1,activation="sigmoid",kernel_initializer="glorot_uniform")(flat)
 
 model = Model(inputs=resnet.input, outputs=Add_layer)
 
@@ -198,7 +204,7 @@ resnet.trainable = True
 model.compile(optimizer=keras.optimizers.Adam(lr=0.0001),loss='binary_crossentropy',metrics=['accuracy'])
 tf.debugging.set_log_device_placement(True)
 with tf.device("/gpu:0"):
-    history = model.fit_generator(train_generator,
+    history = model.fit(train_generator,
                                  steps_per_epoch=len(train_generator),
                                  epochs=100,
                                  validation_data=valid_generator,
