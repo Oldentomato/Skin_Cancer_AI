@@ -1,3 +1,4 @@
+from cv2 import log
 from tensorflow import keras
 import tensorflow as tf
 import pandas as pd
@@ -9,10 +10,11 @@ from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Flatten, Drop
 from tensorflow.keras.models import Model
 from keras import models
 from keras import layers
-from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau, TensorBoard
 import matplotlib.pyplot as plt
 from functools import partial
 from pymongo import MongoClient
+import datetime
 
 # from sklearn.model_selection import train_test_split
 
@@ -35,7 +37,7 @@ db = client['Model_Database']
 collection = db['resnet_collection']
 Model_Name = 'ResNetModel_1'
 log_data = list()
-# In [2]
+start_lr = 0.0001
 
 dirname = 'C:/Users/COMPUTER/Desktop/skin_cancer_images/melanoma_2' 
 
@@ -205,11 +207,14 @@ reduce_lr = ReduceLROnPlateau(
     #3번 동안 개선이 없었기에, 이 콜백함수를 실행합니다.
 )
 
-callbacks = [checkpoint,reduce_lr,earlystop,SendLog_ToMongo()]
+log_dir = "logs\\fit\\"+datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+tensorboard_callback = TensorBoard(log_dir=log_dir, histogram_freq = 1)
+
+callbacks = [checkpoint,reduce_lr,earlystop,SendLog_ToMongo(),tensorboard_callback]
 
 # In [7]
 
-model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001),loss='binary_crossentropy',metrics=['accuracy'])
+model.compile(optimizer=keras.optimizers.Adam(learning_rate = start_lr),loss='binary_crossentropy',metrics=['accuracy'])
 tf.debugging.set_log_device_placement(True)
 
 with tf.device("/gpu:0"):
@@ -226,7 +231,7 @@ resnet.trainable = True
 
 
 # In [7]
-model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001),loss='binary_crossentropy',metrics=['accuracy'])
+model.compile(optimizer=keras.optimizers.Adam(learning_rate = start_lr),loss='binary_crossentropy',metrics=['accuracy'])
 tf.debugging.set_log_device_placement(True)
 with tf.device("/gpu:0"):
     history = model.fit(train_generator,
