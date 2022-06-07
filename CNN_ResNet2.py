@@ -14,6 +14,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLRO
 import matplotlib.pyplot as plt
 from functools import partial
 from pymongo import MongoClient
+import mongo_url as uri
 import datetime
 
 # from sklearn.model_selection import train_test_split
@@ -32,7 +33,8 @@ if gpus:
         # Memory growth must be set before GPUs have been initialized
         print(e)
 
-client = MongoClient("mongodb+srv://Oldentomato:jowoosung123@examplecluster.g7o5t.mongodb.net/Model_DataBase?retryWrites=true&w=majority")
+mongo_url = uri.Mongo_URL
+client = MongoClient()
 db = client['Model_Database']
 collection = db['resnet_collection']
 Model_Name = 'ResNetModel_1'
