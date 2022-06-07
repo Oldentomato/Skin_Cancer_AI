@@ -12,6 +12,8 @@ from keras import layers
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
 import matplotlib.pyplot as plt
 from functools import partial
+from pymongo import MongoClient
+
 # from sklearn.model_selection import train_test_split
 
 
@@ -28,7 +30,11 @@ if gpus:
         # Memory growth must be set before GPUs have been initialized
         print(e)
 
-
+client = MongoClient("mongodb+srv://Oldentomato:jowoosung123@examplecluster.g7o5t.mongodb.net/Model_DataBase?retryWrites=true&w=majority")
+db = client['Model_Database']
+collection = db['resnet_collection']
+Model_Name = 'ResNetModel_1'
+log_data = list()
 # In [2]
 
 dirname = 'C:/Users/COMPUTER/Desktop/skin_cancer_images/melanoma_2' 
@@ -37,7 +43,12 @@ paths = []
 # data_type = []
 labels = []
 
-for dirname, _, filenames in os.walk(dirname):
+#os.walk는 하위의 폴더들을 for문으로 탐색할 수 있게 해준다.
+#3개의 튜플을 넘겨준다
+# root: dir과 files가 있는 path
+# dirs: root 아래에 있는 폴더들
+# files: root 아래에 있는 파일들
+for dirname, _, filenames in os.walk(dirname): #for 문으로 써야하는가?
     for filename in filenames:
         if '.jpg' or '.jpeg' in filename:
             path = dirname + '/' + filename
@@ -144,16 +155,30 @@ model = Model(inputs=resnet.input, outputs=Add_layer)
 model.summary()
 
 
-
 #In [6]
+
+
+class SendLog_ToMongo(keras.callbacks.Callback):
+    def on_train_begin(self, logs=None):
+        collection.insert_one({'model_name' : Model_Name})
+    def on_epoch_end(self, epoch, logs=None):
+        log_data.append({
+            'epoch' : epoch,
+            'loss' : logs.get('loss'),
+            'acc' : logs.get('acc'),
+            'val_loss' : logs.get('val_loss'),
+            'val_acc' : logs.get('val_acc')
+        })
+        collection.update_many({'model_name':Model_Name},{'$set':log_data})
+
 
 save_dir = 'C:/Users/COMPUTER/Desktop/skin_cancer/model(res)/checkpoint2/'
 checkpoint = ModelCheckpoint(
-    save_dir+'epoch_{epoch:03d}-{val_loss:.2f}-{val_accuracy:.2f}.chpt', #모델 저장 경로
-    monitor='val_acc', #모델을 저장할 때 기준이 되는 값
+    save_dir+'epoch_{epoch:03d}-{val_loss:.2f}-{val_accuracy:.2f}.h5', #모델 저장 경로
+    monitor='val_accuracy', #모델을 저장할 때 기준이 되는 값
     verbose = 1, # 1이면 저장되었다고 화면에 뜨고 0이면 안뜸
     save_best_only=True,
-    save_weights_only= True
+    # save_weights_only= True
 #     mode = 'auto',
     #val_acc인 경우, 정확도이기 때문에 클수록 좋으므로 max를 쓰고, val_loss일 경우, loss값이기 떄문에 작을수록 좋으므로 min을써야한다
     #auto일 경우 모델이 알아서 min,max를 판단하여 모델을 저장한다
@@ -162,7 +187,7 @@ checkpoint = ModelCheckpoint(
 )
 
 earlystop = EarlyStopping(
-    monitor='val_loss',
+    monitor='val_accuracy',
     min_delta = 0.001,
     patience = 3,
     verbose=1,
@@ -180,11 +205,11 @@ reduce_lr = ReduceLROnPlateau(
     #3번 동안 개선이 없었기에, 이 콜백함수를 실행합니다.
 )
 
-callbacks = [checkpoint,reduce_lr]
+callbacks = [checkpoint,reduce_lr,earlystop,SendLog_ToMongo()]
 
 # In [7]
 
-model.compile(optimizer=keras.optimizers.Adam(lr=0.0001),loss='binary_crossentropy',metrics=['accuracy'])
+model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001),loss='binary_crossentropy',metrics=['accuracy'])
 tf.debugging.set_log_device_placement(True)
 
 with tf.device("/gpu:0"):
@@ -201,7 +226,7 @@ resnet.trainable = True
 
 
 # In [7]
-model.compile(optimizer=keras.optimizers.Adam(lr=0.0001),loss='binary_crossentropy',metrics=['accuracy'])
+model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001),loss='binary_crossentropy',metrics=['accuracy'])
 tf.debugging.set_log_device_placement(True)
 with tf.device("/gpu:0"):
     history = model.fit(train_generator,

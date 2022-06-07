@@ -167,6 +167,9 @@ for i in range(k):
         batch_size = 8,
     )
 
+    print(len(train_generator))
+    print(len(valid_generator))
+
     model.compile(optimizer=keras.optimizers.Adam(lr=0.0001),loss='binary_crossentropy',metrics=['accuracy'])
     tf.debugging.set_log_device_placement(True)
     with tf.device("/gpu:0"):
