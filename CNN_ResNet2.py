@@ -165,6 +165,13 @@ model.summary()
 class SendLog_ToMongo(keras.callbacks.Callback):
     def on_train_begin(self, logs=None):
         collection.insert_one({'model_name' : Model_Name})
+        collection.insert_many({
+            'epoch': 0,
+            'loss': 0,
+            'acc': 0,
+            'val_loss': 0,
+            'val_acc': 0
+        })
     def on_epoch_end(self, epoch, logs=None):
         log_data.append({
             'epoch' : epoch,
