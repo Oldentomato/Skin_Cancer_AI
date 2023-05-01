@@ -80,6 +80,17 @@ model = Model(inputs=Dense121.input, outputs=Add_layer)
 
 model.summary()
 
+model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001) ,loss='binary_crossentropy',metrics=['accuracy'])
+
+
+with tf.device("/gpu:0"):
+    history = model.fit(train_generator,
+                        steps_per_epoch=len(train_generator),
+                        epochs=100,
+                        validation_data=valid_generator,
+                        validation_steps=len(valid_generator),
+                        shuffle=True)
+
 Dense121.trainable = True #처음부터 실행하지말고 2~3회 학슴한 뒤 이 코드를 실행할것
 
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
@@ -108,7 +119,7 @@ callbacks = [checkpoint]
 
 from tensorflow import keras
 model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.0001) ,loss='binary_crossentropy',metrics=['accuracy'])
-tf.debugging.set_log_device_placement(True)
+
 
 with tf.device("/gpu:0"):
     history = model.fit(train_generator,

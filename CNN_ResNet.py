@@ -1,6 +1,7 @@
 from tensorflow import keras
 import tensorflow as tf
 import pandas as pd
+import numpy as np
 import os
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from sklearn.model_selection import StratifiedKFold
@@ -11,6 +12,7 @@ from keras import models
 from keras import layers
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
 import matplotlib.pyplot as plt
+from functools import partial
 # from sklearn.model_selection import train_test_split
 
 
@@ -42,12 +44,6 @@ for dirname, _, filenames in os.walk(dirname):
             path = dirname + '/' + filename
             paths.append(path)
             
-#             if 'train' in path:
-#                 data_type.append('train')
-#             elif 'valid' in path:
-#                 data_type.append('valid')
-#             else:
-#                 data_type.append('N/A')
                 
             if 'Positive' in path:
                 labels.append('Positive')
@@ -62,82 +58,6 @@ data_df = pd.DataFrame({'path': paths, 'label':labels})
 # valid_df = data_df[data_df['data_type'] == 'valid']
 # tr_df, val_df = train_test_split(train_df, stratify=train_df['label'],test_size=0.2, random_state=42)
 print('Train:',data_df.shape)
-
-# In [2]
-
-
-
-train_datagen= ImageDataGenerator( #여기다가 여러 파라미터를 넣어서 새로운 이미지들을 만들어야한다
-    rescale = 1. /255,
-    horizontal_flip = True, 
-    vertical_flip = True,
-    shear_range = 0.3,
-    rotation_range = 60,
-    width_shift_range = 0.3,
-    height_shift_range = 0.3,
-    fill_mode = 'nearest'
-)
-
-
-valid_datagen = ImageDataGenerator(
-    rescale = 1. /255
-)
-
-skf = StratifiedKFold(n_splits=5,random_state=42,shuffle=True)
-for train_index, valid_index in skf.split(data_df,data_df['label']):
-    training_data = data_df.iloc[train_index]
-    validation_data = data_df.iloc[valid_index]
-    
-    train_generator = train_datagen.flow_from_dataframe(
-        dataframe = training_data,
-        x_col = 'path',
-        y_col = 'label',
-        target_size = (512,512),
-        color_mode = 'rgb',
-        class_mode = 'binary',
-        shuffle = True,
-        batch_size = 8,
-    )
-
-
-    valid_generator = valid_datagen.flow_from_dataframe(
-        dataframe = validation_data,
-        x_col = 'path',
-        y_col = 'label',
-        target_size = (512,512),
-        color_mode = 'rgb',
-        class_mode = 'binary',
-        shuffle = True,
-        batch_size = 8,
-    )
-
-
-
-
-
-# In [4]
-
-# Model Resnet50 불러오기
-resnet = ResNet50(weights="imagenet", include_top=False, input_shape=(512, 512, 3))  
-
-# include_top = False 를 해야 convolution layer들만 가져오고 밑에 내가 만든 fully connected layer를 더 쌓을 수 있다
-
-
-resnet.trainable = False
-
-
-flat = GlobalAveragePooling2D()(resnet.output)
-# Add_layer = Dense(5, activation='relu')(flat)
-# Add_layer = Dense(51, activation='relu')(Add_layer)
-# Add_layer = Dense(256, activation='relu')(Add_layer)
-# Add_layer = Dense(512, activation='relu')(Add_layer)
-Add_layer = Dense(1, activation='sigmoid')(flat)
-
-model = Model(inputs=resnet.input, outputs=Add_layer)
-
-model.summary()
-
-
 
 #In [6]
 
@@ -176,55 +96,115 @@ reduce_lr = ReduceLROnPlateau(
 
 callbacks = [checkpoint,reduce_lr]
 
-# In [7]
+# In [4]
 
-model.compile(optimizer=keras.optimizers.Adam(lr=0.0001),loss='binary_crossentropy',metrics=['accuracy'])
-tf.debugging.set_log_device_placement(True)
+# Model Resnet50 불러오기
+resnet = ResNet50(weights="imagenet", include_top=False, input_shape=(512, 512, 3))  
+
+# include_top = False 를 해야 convolution layer들만 가져오고 밑에 내가 만든 fully connected layer를 더 쌓을 수 있다
+
+
+resnet.trainable = False
+
+flat = GlobalAveragePooling2D()(resnet.output)
+Add_layer = Dense(1,activation="sigmoid")(flat)
+
+model = Model(inputs=resnet.input, outputs=Add_layer)
+
+model.summary()
+
+model.compile(optimizer=keras.optimizers.Adam(lr=0.0001), loss='binary_crossentropy',metrics=['accuracy'])
 
 with tf.device("/gpu:0"):
-    history = model.fit(train_generator,
-                                 steps_per_epoch=len(train_generator),
-                                 epochs=1,
-                                 validation_data=valid_generator,
-                                 validation_steps=len(valid_generator),
-                                 shuffle=True)
+    model.fit(train_generator,
+                steps_per_epoch=len(train_generator),
+                epochs=1,
+                shuffle=True)
 
 
-#In [5]
-resnet.trainable = True
+
+k = 3
+num_val_samples = len(data_df)
+all_scores = []
+
+for i in range(k):
+    print('processing fold #', i)
+    val_data = data_df['path'][i * num_val_samples: (i + 1) * num_val_samples]
+
+    partial_train_data = np.concatenate(
+                [data_df['path'][:i * num_val_samples],
+                data_df['path'][(i + 1) * num_val_samples:]],
+                axis = 0)
 
 
-# In [7]
-model.compile(optimizer=keras.optimizers.Adam(lr=0.0001),loss='binary_crossentropy',metrics=['accuracy'])
-tf.debugging.set_log_device_placement(True)
-with tf.device("/gpu:0"):
-    history = model.fit_generator(train_generator,
-                                 steps_per_epoch=len(train_generator),
-                                 epochs=100,
-                                 validation_data=valid_generator,
-                                 validation_steps=len(valid_generator),
-                                 callbacks = callbacks,
-                                 shuffle=True)
+    train_datagen= ImageDataGenerator( #여기다가 여러 파라미터를 넣어서 새로운 이미지들을 만들어야한다
+        rescale = 1. /255,
+        horizontal_flip = True, 
+        vertical_flip = True,
+        shear_range = 0.3,
+        rotation_range = 60,
+        width_shift_range = 0.3,
+        height_shift_range = 0.3,
+        fill_mode = 'nearest'
+    )
+
+    valid_datagen = ImageDataGenerator(
+    rescale = 1. /255
+    )
+    
+    train_generator = train_datagen.flow_from_dataframe(
+        dataframe = partial_train_data,
+        x_col = 'path',
+        y_col = 'label',
+        target_size = (512,512),
+        color_mode = 'rgb',
+        class_mode = 'binary',
+        shuffle = True,
+        batch_size = 8,
+    )
+
+
+    valid_generator = valid_datagen.flow_from_dataframe(
+        dataframe = val_data,
+        x_col = 'path',
+        y_col = 'label',
+        target_size = (512,512),
+        color_mode = 'rgb',
+        class_mode = 'binary',
+        shuffle = True,
+        batch_size = 8,
+    )
+
+    print(len(train_generator))
+    print(len(valid_generator))
+
+    model.compile(optimizer=keras.optimizers.Adam(lr=0.0001),loss='binary_crossentropy',metrics=['accuracy'])
+    with tf.device("/gpu:0"):
+        history = model.fit(train_generator,
+                                    steps_per_epoch=len(train_generator),
+                                    epochs=100,
+                                    callbacks = callbacks,
+                                    shuffle=True)
+    #mse: 평균제곱오차 mae: 평균절대오차 
+    val_mse, val_mae = model.evaluate(valid_generator, verbose=0)
+    all_scores.append(val_mae)
 
 # In [5]
 
 plt.plot(history.history['loss'])
-plt.plot(history.history['val_loss'])
 plt.ylabel('loss')
 plt.xlabel('epoch')
-plt.legend(['train_loss','val_loss'])
+plt.legend(['train_loss'])
 plt.show()
 
 plt.plot(history.history['accuracy'])
-plt.plot(history.history['val_accuracy'])
 plt.ylabel('accuracy')
 plt.xlabel('epoch')
-plt.legend(['train_accuracy','val_accuracy'])
+plt.legend(['train_accuracy'])
 plt.show()
 
 # In [5]
 model.load_weights(save_dir+'epoch_{epoch:03d}-{val_loss:.2f}-{val_accuracy:.2f}.chpt')
 model_path = 'C:/Users/COMPUTER/Desktop/skin_cancer/model(res)/save_model/'
 model.save(model_path+'resnet_model.h5')
-
 
